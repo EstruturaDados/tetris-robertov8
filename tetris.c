@@ -34,8 +34,10 @@ typedef struct {
     int topo;
 } PilhaLinear;
 
-// Variável global para controlar o ID sequencial das peças
+// Variáveis globais
 int proximoId = 1;
+Peca ultimaPecaJogada;
+int temUltimaPeca = 0;
 
 // Função para gerar uma peça automaticamente
 Peca gerarPeca() {
@@ -167,6 +169,81 @@ void mostrarPilha(PilhaLinear *pilha) {
     printf("  Tamanho: %d/%d\n", pilha->topo + 1, CAPACIDADE_PILHA);
 }
 
+// 🔄 Nível Mestre: Funções Avançadas
+
+// Função para trocar a peça da frente da fila com o topo da pilha
+int trocarFrentePilha(FilaCircular *fila, PilhaLinear *pilha) {
+    if (filaVazia(fila)) {
+        printf("\n❌ Erro: Fila está vazia!\n");
+        return 0;
+    }
+    if (pilhaVazia(pilha)) {
+        printf("\n❌ Erro: Pilha está vazia!\n");
+        return 0;
+    }
+    
+    // Pegar a peça da frente da fila e do topo da pilha
+    Peca pecaFila = fila->pecas[fila->frente];
+    Peca pecaPilha = pilha->pecas[pilha->topo];
+    
+    // Trocar
+    fila->pecas[fila->frente] = pecaPilha;
+    pilha->pecas[pilha->topo] = pecaFila;
+    
+    printf("\n🔄 Troca realizada!\n");
+    printf("   Fila recebeu: [%c-%02d]\n", pecaPilha.tipo, pecaPilha.id);
+    printf("   Pilha recebeu: [%c-%02d]\n", pecaFila.tipo, pecaFila.id);
+    
+    return 1;
+}
+
+// Função para inverter completamente a fila com a pilha
+int inverterFilaPilha(FilaCircular *fila, PilhaLinear *pilha) {
+    // Verificar se há elementos suficientes
+    if (filaVazia(fila) && pilhaVazia(pilha)) {
+        printf("\n❌ Erro: Ambas as estruturas estão vazias!\n");
+        return 0;
+    }
+    
+    // Arrays temporários para armazenar os elementos
+    Peca tempFila[CAPACIDADE_FILA];
+    int tamanhoFila = fila->tamanho;
+    
+    Peca tempPilha[CAPACIDADE_PILHA];
+    int tamanhoPilha = pilha->topo + 1;
+    
+    // Copiar elementos da fila para array temporário
+    for (int i = 0; i < tamanhoFila; i++) {
+        int indice = (fila->frente + i) % CAPACIDADE_FILA;
+        tempFila[i] = fila->pecas[indice];
+    }
+    
+    // Copiar elementos da pilha para array temporário
+    for (int i = 0; i <= pilha->topo; i++) {
+        tempPilha[i] = pilha->pecas[i];
+    }
+    
+    // Limpar fila e pilha
+    inicializarFila(fila);
+    inicializarPilha(pilha);
+    
+    // Colocar elementos da pilha na fila
+    for (int i = 0; i < tamanhoPilha; i++) {
+        enqueue(fila, tempPilha[i]);
+    }
+    
+    // Colocar elementos da fila na pilha
+    for (int i = 0; i < tamanhoFila; i++) {
+        push(pilha, tempFila[i]);
+    }
+    
+    printf("\n🔄 Inversão completa realizada!\n");
+    printf("   Fila agora tem %d peças (vindas da pilha)\n", tamanhoPilha);
+    printf("   Pilha agora tem %d peças (vindas da fila)\n", tamanhoFila);
+    
+    return 1;
+}
+
 int main() {
     srand(time(NULL)); // Inicializa o gerador de números aleatórios
     
@@ -176,8 +253,8 @@ int main() {
     inicializarPilha(&pilha);
     
     // Preencher a fila com 5 peças iniciais
-    printf("🎮 TETRIS STACK - Nível Aventureiro 🎮\n");
-    printf("═══════════════════════════════════════\n");
+    printf("🎮 TETRIS STACK - Nível Mestre 🎮\n");
+    printf("══════════════════════════════════════\n");
     printf("Inicializando fila com 5 peças...\n");
     
     for (int i = 0; i < CAPACIDADE_FILA; i++) {
@@ -190,14 +267,17 @@ int main() {
         mostrarFila(&fila);
         mostrarPilha(&pilha);
         
-        printf("\n╔═══════════════════════════════════╗\n");
-        printf("║         MENU PRINCIPAL            ║\n");
-        printf("╠═══════════════════════════════════╣\n");
-        printf("║ 1 - Jogar peça (remover)         ║\n");
-        printf("║ 2 - Reservar peça (fila → pilha) ║\n");
-        printf("║ 3 - Usar peça reservada (pilha)  ║\n");
-        printf("║ 0 - Sair                          ║\n");
-        printf("╚═══════════════════════════════════╝\n");
+        printf("\n╔═══════════════════════════════════════╗\n");
+        printf("║          MENU PRINCIPAL               ║\n");
+        printf("╠═══════════════════════════════════════╣\n");
+        printf("║ 1 - Jogar peça (remover)             ║\n");
+        printf("║ 2 - Reservar peça (fila → pilha)     ║\n");
+        printf("║ 3 - Usar peça reservada (pilha)      ║\n");
+        printf("║ 4 - Trocar frente da fila com topo   ║\n");
+        printf("║ 5 - Desfazer última jogada           ║\n");
+        printf("║ 6 - Inverter fila com pilha          ║\n");
+        printf("║ 0 - Sair                              ║\n");
+        printf("╚═══════════════════════════════════════╝\n");
         printf("Escolha uma opção: ");
         scanf("%d", &opcao);
         
@@ -205,6 +285,11 @@ int main() {
             case 1:
                 if (!filaVazia(&fila)) {
                     Peca pecaJogada = dequeue(&fila);
+                    
+                    // Salvar para desfazer
+                    ultimaPecaJogada = pecaJogada;
+                    temUltimaPeca = 1;
+                    
                     printf("\n✅ Peça jogada: [%c-%02d]\n", pecaJogada.tipo, pecaJogada.id);
                     
                     // Inserir nova peça automaticamente
@@ -244,6 +329,40 @@ int main() {
                 }
                 break;
             
+            case 4:
+                trocarFrentePilha(&fila, &pilha);
+                break;
+            
+            case 5:
+                if (!temUltimaPeca) {
+                    printf("\n❌ Erro: Nenhuma jogada para desfazer!\n");
+                } else {
+                    // Verificar se há espaço na fila
+                    if (filaCheia(&fila)) {
+                        printf("\n❌ Erro: Fila está cheia! Não é possível desfazer.\n");
+                    } else {
+                        // Remove a última peça gerada (do final da fila)
+                        // Para isso, precisamos decrementar o tamanho
+                        fila.tras = (fila.tras - 1 + CAPACIDADE_FILA) % CAPACIDADE_FILA;
+                        fila.tamanho--;
+                        
+                        // Adiciona a peça jogada de volta na frente
+                        fila.frente = (fila.frente - 1 + CAPACIDADE_FILA) % CAPACIDADE_FILA;
+                        fila.pecas[fila.frente] = ultimaPecaJogada;
+                        fila.tamanho++;
+                        
+                        printf("\n⏪ Desfazer: Peça [%c-%02d] retornou à frente da fila!\n", 
+                               ultimaPecaJogada.tipo, ultimaPecaJogada.id);
+                        
+                        temUltimaPeca = 0;
+                    }
+                }
+                break;
+            
+            case 6:
+                inverterFilaPilha(&fila, &pilha);
+                break;
+            
             case 0:
                 printf("\n👋 Encerrando o jogo. Até logo!\n");
                 break;
@@ -260,24 +379,6 @@ int main() {
         }
         
     } while (opcao != 0);
-
-    // 🔄 Nível Mestre: Integração Estratégica entre Fila e Pilha
-    //
-    // - Implemente interações avançadas entre as estruturas:
-    //      4 - Trocar a peça da frente da fila com o topo da pilha
-    //      5 - Trocar os 3 primeiros da fila com as 3 peças da pilha
-    // - Para a opção 4:
-    //      Verifique se a fila não está vazia e a pilha tem ao menos 1 peça.
-    //      Troque os elementos diretamente nos arrays.
-    // - Para a opção 5:
-    //      Verifique se a pilha tem exatamente 3 peças e a fila ao menos 3.
-    //      Use a lógica de índice circular para acessar os primeiros da fila.
-    // - Sempre valide as condições antes da troca e informe mensagens claras ao usuário.
-    // - Use funções auxiliares, se quiser, para modularizar a lógica de troca.
-    // - O menu deve ficar assim:
-    //      4 - Trocar peça da frente com topo da pilha
-    //      5 - Trocar 3 primeiros da fila com os 3 da pilha
-
 
     return 0;
 }
